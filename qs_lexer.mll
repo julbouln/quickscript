@@ -23,17 +23,6 @@ rule token = parse
   | "true"          { BOOL(true) }
   | "false"         { BOOL(false) }
   
-  (* français *)
-  | "debut"         { BEGIN }
-  | "fin"           { END }  
-  | "si"            { IF }
-  | "alors"         { THEN }
-  | "sinon"         { ELSE }  
-  | "fonction"      {FUNCDEC}
- 
-  | "vrai"          { BOOL(true) }
-  | "faux"          { BOOL(false) }
- 
   
   | ['0'-'9']+ as lxm { INT(int_of_string lxm) } 
   | '+'            { PLUS }

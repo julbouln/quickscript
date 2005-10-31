@@ -31,7 +31,7 @@ type qs_inst=
   | QsSetValInst of (string * qs_inst)
   | QsIf of (qs_exp * qs_inst * qs_inst)
   | QsFunc of (string * qs_exp)
-  | QsFuncDecl of (string * qs_inst)
+  | QsFuncDecl of (string * qs_exp * qs_inst)
   | QsFuncRet of qs_exp
   | QsWhile of (qs_exp * qs_inst)
   | QsVal of qs_val

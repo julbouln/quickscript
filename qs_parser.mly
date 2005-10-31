@@ -93,7 +93,8 @@ inst:
 | IF LPAREN exp RPAREN LAC inst RAC { (QsIf($3,$6,QsUnit))}
 
 | FUNCRET exp { QsFuncRet($2)  }
-| FUNCDEC func RPAREN LAC inst RAC { QsFuncDecl($2,$5) }
+| FUNCDEC func RPAREN LAC inst RAC { QsFuncDecl($2,QsEVal(QsNil),$5) }
+| FUNCDEC func exp RPAREN LAC inst RAC { QsFuncDecl($2,$3,$6) }
 | func exp RPAREN { QsFunc($1,$2)}
 | func RPAREN { QsFunc($1,QsEVal(QsNil))}
 

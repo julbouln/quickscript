@@ -3,7 +3,6 @@ open Qs_types;;
 let debug=false;;
 
 exception Qs_val_not_declared of string
-
 exception Qs_func_not_declared of string
 exception Qs_func_invalid_argument of string
 
@@ -89,6 +88,8 @@ object(self)
   method add_val (id:string) (v:qs_val)=
     Hashtbl.add val_hash id v
   method set_val (id:string) (v:qs_val)=
+    if debug then
+      (print_string ("QS:set val "^id);print_newline());
       Hashtbl.replace val_hash id v
   method del_val (id:string)=Hashtbl.remove val_hash id
   method get_val (id:string)=
@@ -98,39 +99,97 @@ object(self)
       raise (Qs_val_not_declared id) 	
 end;;  
 
-  
-class qs_kernel=
+class qs_funcs=
 object(self)
-  inherit qs_mem
-  val mutable inst_stack=Stack.create()
-			   
-  method push_inst (i:qs_inst)=Stack.push i inst_stack
-  method pop_inst()=Stack.pop inst_stack
-		      
   val mutable func_hash=Hashtbl.create 2
-			  
-  method add_func (id:string) (v:qs_val->qs_val)=
-    if debug then
-      (print_string ("QS:add_func "^id);print_newline());
+			 
+  method add_func (id:string) (v:(qs_val->qs_val))=
     Hashtbl.add func_hash id v
-      
+  method set_func (id:string) (v:(qs_val->qs_val))=
+      Hashtbl.replace func_hash id v
+  method del_func (id:string)=Hashtbl.remove func_hash id
   method get_func (id:string)=
     if Hashtbl.mem func_hash id then
       Hashtbl.find func_hash id
     else 
       raise (Qs_func_not_declared id)
-	
-  method func_decl (id:string) (inst)=
+end;;  
+
+  
+class qs_kernel=
+object(self)
+  inherit qs_mem
+  inherit qs_funcs
+  val mutable inst_stack=Stack.create()
+			   
+  method push_inst (i:qs_inst)=Stack.push i inst_stack
+  method pop_inst()=Stack.pop inst_stack
+		      
+  method func_decl (id:string) (aref:qs_exp) (inst)=
     self#add_func id (
-      fun arg->
-        let r=self#inst_exec (inst) in r
-    );
+		      fun args->
+			let lmem=new qs_mem in
+			  (match aref with
+			     | QsEVal v->
+				 (match v with
+				    | QsVar vid->
+					lmem#set_val vid (args)
+				    | _ -> raise (Qs_func_invalid_argument id)
+				 )
+			     | QsEList vl->
+				 let i=ref 0 in
+				   List.iter (fun v->
+						(match v with
+						   | QsEVal vv->
+						       (match vv with
+							  | QsVar vid ->
+							      let argl=
+								(match args with
+								   | QsValList al ->
+								       (*List.map (
+									fun arg->
+									 match arg with 
+									 | QsVar argv->argv
+									 | _ -> raise (Qs_func_invalid_argument id)
+									 ) *)al
+								  | _ -> raise (Qs_func_invalid_argument id)
+								) in
+							       lmem#set_val vid  (List.nth argl !i)
+								 
+							 | _ -> raise (Qs_func_invalid_argument id)
+						      );
+						  | _ -> raise (Qs_func_invalid_argument id)
+						);
+						      i:= !i+1;
+					     ) vl;
+
+(*				   raise (Qs_func_invalid_argument "list not supported") *)
+			     | _ -> raise (Qs_func_invalid_argument id)
+			  );
+			  
+			  self#inst_exec (Some lmem) (inst) 
+		     );
     QsUnit   
+
+  method func_exec (n:string) (lmem:qs_mem option) (args:qs_exp)=
+    if debug then
+      (print_string ("QS:call func "^n);print_newline());
+    let (f)=self#get_func n in	 
+      f (self#exp_exec lmem args); 
       
-  method exp_exec v=
+  method exp_exec lmem (v:qs_exp)=
     let exp_finalize (v:qs_val)=
       match v with
-	| QsVar id-> self#get_val id
+	| QsVar id-> 
+	    (match lmem with
+	       | Some lm ->
+		   (try
+		      lm#get_val id 
+		    with
+			Qs_val_not_declared did->	   
+			  self#get_val id)
+	       | None -> 
+		   self#get_val id)
 	| x -> x in
       
     let rec qs_exec_exp (v:qs_exp)=
@@ -166,54 +225,63 @@ object(self)
     in
       qs_exec_exp v
 	    
-  method inst_exec v=
+  method inst_exec (lmem:qs_mem option) v=
     let rec qs_exec_inst (v:qs_inst)=
       match v with
-	| QsGetVal (id)->self#get_val id
+	| QsGetVal (id)->
+	    (match lmem with
+	       | Some lm ->
+		   (try lm#get_val id 
+		   with
+		       Qs_val_not_declared did->	   
+			 self#get_val id)
+	       | None -> self#get_val id)
 
 	| QsSetVal (id,v)->
 	    if debug then
               (print_string ("QS:set_val " ^id);print_newline());
-	    self#set_val id (self#exp_exec v);QsNil
+	    self#set_val id (self#exp_exec lmem v);QsNil
 
 	| QsSetValInst (id,v)->
 	    if debug then
               (print_string ("QS:set_val with func" ^id);print_newline());
-	    self#set_val id (self#inst_exec v);QsNil
+	    self#set_val id (self#inst_exec lmem v);QsNil
 
 
 	| QsInstBlock (vl)->
 	    let r=ref QsNil in
               List.iter (
 		fun vc->
-		  r:=self#inst_exec vc
+		  r:=self#inst_exec lmem vc
 	      ) vl;
 	      !r
 
-	| QsIf (r,ifi,elsei)->if (bool_of_qs (self#exp_exec r)) then self#inst_exec ifi else self#inst_exec elsei
-	| QsWhile (r,d)->while (bool_of_qs (self#exp_exec r)) do self#inst_exec d done;QsNil
+	| QsIf (r,ifi,elsei)->if (bool_of_qs (self#exp_exec lmem r)) then self#inst_exec lmem ifi else self#inst_exec lmem elsei
+	| QsWhile (r,d)->while (bool_of_qs (self#exp_exec lmem r)) do self#inst_exec lmem d done;QsNil
 	| QsFuncRet v->
-	    self#exp_exec v
-	| QsFuncDecl (n,i)->
+	    self#exp_exec lmem v
+	| QsFuncDecl (n,a,i)->
             if debug then
 	      (print_string ("QS:declare func "^n);print_newline());
-	    self#func_decl n i;
+	    self#func_decl n a i;
 	    QsNil
 	| QsFunc (n,args)->
-            if debug then
-	      (print_string ("QS:call func "^n);print_newline());
-	    let f=self#get_func n in f (self#exp_exec args);
+	    self#func_exec n lmem args
 	| QsUnit -> QsNil
 	| QsVal v-> v
 	| _ -> QsNil in
       
       qs_exec_inst v
+
+
+
+
         
   method exec ()=
     let r=ref QsNil in
       while (Stack.is_empty inst_stack==false) do
 	let inst=self#pop_inst() in
-	  r:=self#inst_exec inst 
+	  r:=self#inst_exec (None) inst 
       done;!r
 		
 end;;  
@@ -234,8 +302,7 @@ let print=(
        | _ -> ()) in
     fun args-> parse_args args;QsNil );;
 
-kernel#add_func "print" print;; 
-kernel#add_func "afficher" print;; 
+kernel#add_func "print" ( print);; 
 
 let random=( 
   let rec parse_args a=
@@ -244,10 +311,9 @@ let random=(
        | _ -> raise (Qs_func_invalid_argument "random")) in
     fun args-> parse_args args; );;   
 
-kernel#add_func "random" random;; 
-kernel#add_func "aleatoire" random;; 
+kernel#add_func "random" ( random);; 
 
-kernel#add_func "concat" ( 
+kernel#add_func "concat" (( 
   let res=ref "" in
   let parse_args a=
     (match a with
@@ -260,4 +326,4 @@ kernel#add_func "concat" (
 	     )
              x;
        | _-> raise (Qs_func_invalid_argument "concat")) in
-    fun args-> parse_args args;QsString (!res));; 
+    fun args-> parse_args args;QsString (!res)));; 

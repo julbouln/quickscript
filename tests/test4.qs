@@ -5,7 +5,6 @@ c=a>5;
 i=0;
 i=i+1;
 
-var r;
 r=random(100);
 print(r);
 while (i<10) {
