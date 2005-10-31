@@ -19,7 +19,6 @@ rule token = parse
   | "for"           {FOR}
   | "function"      {FUNCDEC}
   | "return"      {FUNCRET}
-  | "var"           {VAR}
 
   | "true"          { BOOL(true) }
   | "false"         { BOOL(false) }

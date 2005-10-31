@@ -42,8 +42,6 @@
 %token AND
 %token OR
 
-%token VAR
-
 %token SEP
 %token CSEP
 %token LSEP
@@ -83,8 +81,6 @@ inst:
 
 | VAL EGAL inst {QsSetValInst($1, $3)}
 | VAL EGAL exp { QsSetVal($1, $3)}
-
-| VAR VAL {QsAddVal($2,QsEVal(QsNil)) }
 
 /*| FOR LPAREN inst SEP exp SEP exp RPAREN LAC inst RAC {
     $10

@@ -86,8 +86,10 @@ class qs_mem=
 object(self)
   val mutable val_hash=Hashtbl.create 2
 			 
-  method add_val (id:string) (v:qs_val)=Hashtbl.add val_hash id v
-  method set_val (id:string) (v:qs_val)=Hashtbl.replace val_hash id v
+  method add_val (id:string) (v:qs_val)=
+    Hashtbl.add val_hash id v
+  method set_val (id:string) (v:qs_val)=
+      Hashtbl.replace val_hash id v
   method del_val (id:string)=Hashtbl.remove val_hash id
   method get_val (id:string)=
     if Hashtbl.mem val_hash id then
@@ -167,10 +169,6 @@ object(self)
   method inst_exec v=
     let rec qs_exec_inst (v:qs_inst)=
       match v with
-	| QsAddVal (id,v)->
-            if debug then
-              (print_string ("QS:add_val " ^id);print_newline());
-	    self#add_val id (self#exp_exec v);QsNil
 	| QsGetVal (id)->self#get_val id
 
 	| QsSetVal (id,v)->

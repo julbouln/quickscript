@@ -26,7 +26,6 @@ type qs_exp=
 ;;
 
 type qs_inst=
-    QsAddVal of (string * qs_exp)
   | QsGetVal of (string)
   | QsSetVal of (string * qs_exp)
   | QsSetValInst of (string * qs_inst)
