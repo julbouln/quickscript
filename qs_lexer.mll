@@ -4,12 +4,11 @@
   exception Eof
 }
 rule token = parse 
-    [' ' '\t' '\n']     { token lexbuf }     (* skip blanks *)
-(*  | ";"            { EOL } *)
+    [' ' '\t' '\n']      { token lexbuf }     (* skip blanks *) 
+  | '\n'            { EOL } 
    
   | "nil"           { NIL }
  
-  (* english *)
   | "begin"         { BEGIN }
   | "end"           { END }
   | "if"            { IF }
@@ -44,7 +43,7 @@ rule token = parse
   | '&'            { AND }
   | '|'            { OR }
 
-  | "//"           { COMMENT }
+  | "//" [^ ';']*  { COMMENT(Lexing.lexeme lexbuf) }
 
   | "unit"         { UNIT }
   | ',' 	   {  CSEP }
@@ -57,8 +56,9 @@ rule token = parse
   | '#'            {STRUCTSUB }
 
  
-  | ['A'-'z' '_' '@' '0'-'9']+ as lxm  { VAL(lxm) }
+  | ['A'-'z' '_' '0'-'9']+ as lxm  { VAL(lxm) }
   | ['A'-'z' '_' '0'-'9']+ '(' as lxm  { FUNC(lxm) }
   | '"' (['A'-'z' '_' ' ' '@' '0'-'9']+ as lxm) '"' { STRING(lxm) }
+
 (*  | (['A'-'z']+ as id) '#' (['A' - 'z']+ as lxm) { INT(f id lxm) } *)
   | eof            { raise Eof } 

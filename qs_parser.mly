@@ -18,7 +18,7 @@
 
 %token BEGIN END
 
-%token COMMENT
+%token <string> COMMENT
 
 %token UNIT
 
@@ -65,16 +65,16 @@ block:
 ;
 
 inst:
+| COMMENT                 { QsComment($1) }
 | LPAREN inst RPAREN      { $2 }
 | inst SEP {$1}
 | inst SEP inst { qs_inst_block_concat $1 $3 }
+| LAC inst RAC { $2 }
 
 | COMMENT inst { QsUnit }
 
-
 /*| VAL EGAL STRUCTSUB  { (QsAddVal($1, QsEVal(Qs_types.QsStruct (Hashtbl.create 2)))); }*/
 /*| VAL STRUCTSUB VAL EGAL exp { let r=kernel#exec() in add_val_struct (kernel#get_val $1) $3 $5;QsUnit}*/
-
 
 | VAL EGAL func exp RPAREN {QsSetValInst($1, (QsFunc($3,$4)))}
 | VAL EGAL func RPAREN {QsSetValInst($1, (QsFunc($3,QsEVal(QsNil))))}
@@ -145,11 +145,9 @@ exp_int:
 
 exp_string:
   STRING                   { QsEVal(QsString($1)) }  
+| exp_string LSEP exp_string      { QsEConcat($1,$3)}
 |  exp_val     {$1}
 ;
 
 exp_val:
 | VAL    { QsEVal(QsVar($1)) }
-
-
-

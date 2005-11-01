@@ -134,6 +134,7 @@ object(self)
 				 (match v with
 				    | QsVar vid->
 					lmem#set_val vid (args)
+				    | QsNil -> ()
 				    | _ -> raise (Qs_func_invalid_argument id)
 				 )
 			     | QsEList vl->
@@ -217,10 +218,13 @@ object(self)
 	    QsInt(int_of_qs(qs_exec_exp v1) * int_of_qs(qs_exec_exp v2))
 	| QsEDiv(v1,v2)->
 	    QsInt(int_of_qs(qs_exec_exp v1) / int_of_qs(qs_exec_exp v2))
+	| QsEConcat(v1,v2)->
+	    QsString(string_of_qs(qs_exec_exp v1) ^ string_of_qs(qs_exec_exp v2))
 	| QsEList(vl)->
 	    QsValList(List.map (fun ve->
 			   qs_exec_exp ve
 			) vl);
+
 	| _ -> QsNil 
     in
       qs_exec_exp v

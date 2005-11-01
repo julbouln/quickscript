@@ -22,6 +22,7 @@ type qs_exp=
   | QsEMinus of qs_exp * qs_exp
   | QsETimes of qs_exp * qs_exp
   | QsEDiv of qs_exp * qs_exp
+  | QsEConcat of qs_exp * qs_exp
   | QsEList of qs_exp list
 ;;
 
@@ -36,7 +37,7 @@ type qs_inst=
   | QsWhile of (qs_exp * qs_inst)
   | QsVal of qs_val
   | QsInstBlock of (qs_inst list)
-
+  | QsComment of string
   | QsUnit
 ;;
 
