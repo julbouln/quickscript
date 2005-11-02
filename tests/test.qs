@@ -4,10 +4,11 @@ $b="bla";
 print($a);
 function bla () { 
 print("truc");
-print("bidule")
+print("bidule");
 };
 $g=concat($b,$b);
 if($a<20) {
+print("if");
 print($g)
 } else {
 print(0)

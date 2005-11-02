@@ -78,6 +78,8 @@ inst:
 | inst SEP inst { qs_inst_block_concat $1 $3 }
 | LAC inst RAC { $2 }
 
+| LAC inst RAC inst { qs_inst_block_concat $2 $4 }
+
 | COMMENT inst { QsUnit }
 
 /*| VAL EGAL STRUCTSUB  { (QsAddVal($1, QsEVal(Qs_types.QsStruct (Hashtbl.create 2)))); }*/
@@ -96,7 +98,7 @@ inst:
 
 | WHILE LPAREN exp RPAREN LAC inst RAC { QsWhile($3,$6) }
 
-| IF LPAREN exp RPAREN LAC inst RAC ELSE LAC inst RAC { (QsIf($3,$6,$10))}
+| IF LPAREN exp RPAREN LAC inst  RAC ELSE LAC inst  RAC { (QsIf($3,$6,$10))}
 | IF LPAREN exp RPAREN LAC inst RAC { (QsIf($3,$6,QsUnit))}
 
 | FUNCRET exp { QsFuncRet($2)  }
