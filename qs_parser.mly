@@ -49,6 +49,10 @@
 %token FUNCDEC
 %token FUNCRET
 
+%token CLASS
+%token CLASSMEMBER
+%token NEW
+
 %left PLUS MINUS        /* lowest precedence */
 %left TIMES DIV         /* medium precedence */
 %nonassoc UMINUS        /* highest precedence */
@@ -98,8 +102,14 @@ inst:
 | func exp RPAREN { QsFunc($1,$2)}
 | func RPAREN { QsFunc($1,QsEVal(QsNil))}
 
+| CLASS VAL LAC inst RAC {QsClassDecl($2,$4)}
+| VAL EGAL NEW VAL {QsClassNew($1,$4)}
+| VAL CLASSMEMBER func exp RPAREN { QsClassMethod($1,$3,$4) }
+| VAL CLASSMEMBER func RPAREN { QsClassMethod($1,$3,QsEVal(QsNil)) }
 
 | UNIT { QsUnit }
+
+
 
 ;
 
@@ -151,3 +161,4 @@ exp_string:
 
 exp_val:
 | VAL    { QsEVal(QsVar($1)) }
+| VAL CLASSMEMBER VAL {QsEVal(QsObjectMember($1,$3))}

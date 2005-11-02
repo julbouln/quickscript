@@ -5,6 +5,8 @@ type qs_val=
   | QsStruct of (string, qs_val) Hashtbl.t 
   | QsValList of (qs_val list)
   | QsVar of string
+  | QsObject of string
+  | QsObjectMember of (string * string)
   | QsNil
 ;;
 
@@ -38,6 +40,12 @@ type qs_inst=
   | QsVal of qs_val
   | QsInstBlock of (qs_inst list)
   | QsComment of string
+
+  | QsClassMethod of (string * string * qs_exp)
+  | QsClassDecl of (string * qs_inst)
+  | QsClassNew of (string * string)
+
+
   | QsUnit
 ;;
 

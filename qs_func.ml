@@ -3,6 +3,7 @@ open Qs_types;;
 let debug=false;;
 
 exception Qs_val_not_declared of string
+exception Qs_class_not_declared of string
 exception Qs_func_not_declared of string
 exception Qs_func_invalid_argument of string
 
@@ -115,18 +116,99 @@ object(self)
       raise (Qs_func_not_declared id)
 end;;  
 
+class qs_class=
+object(self)
+  val mutable mem= new qs_mem
+  val mutable funcs=new qs_funcs
+  method get_mem=mem
+  method get_funcs=funcs
+end;;
+
+
+class qs_classes=
+object(self)
+  val mutable class_hash=Hashtbl.create 2
+			 
+  method add_class (id:string) (v:unit->qs_class)=
+    Hashtbl.add class_hash id v
+  method set_class (id:string) (v:unit->qs_class)=
+      Hashtbl.replace class_hash id v
+  method del_class (id:string)=Hashtbl.remove class_hash id
+  method get_class (id:string)=
+    if Hashtbl.mem class_hash id then
+      Hashtbl.find class_hash id
+    else 
+      raise (Qs_class_not_declared id)
+end;;
+
+class qs_objects=
+object(self)
+  val mutable obj_hash=Hashtbl.create 2
+			 
+  method add_obj (id:string) (v:qs_class)=
+    Hashtbl.add obj_hash id v
+  method set_obj (id:string) (v:qs_class)=
+      Hashtbl.replace obj_hash id v
+  method del_obj (id:string)=Hashtbl.remove obj_hash id
+  method get_obj (id:string)=
+    if Hashtbl.mem obj_hash id then
+      Hashtbl.find obj_hash id
+    else 
+      raise (Qs_class_not_declared id)
+end;;
   
 class qs_kernel=
 object(self)
   inherit qs_mem
   inherit qs_funcs
+  inherit qs_classes
+  inherit qs_objects
+
   val mutable inst_stack=Stack.create()
 			   
   method push_inst (i:qs_inst)=Stack.push i inst_stack
   method pop_inst()=Stack.pop inst_stack
+
+  method get_local_val id (lmem:qs_mem option)=
+    (match lmem with
+       | Some lm ->
+	   (try
+	      lm#get_val id 
+	    with
+		Qs_val_not_declared did->	   
+		  self#get_val id)
+       | None -> 
+	   self#get_val id)
+
+  method get_local_func id (lfunc:qs_funcs option)=
+    (match lfunc with
+       | Some lf ->
+	   (try
+	      lf#get_func id 
+	    with
+		Qs_val_not_declared did->	   
+		  self#get_func id)
+       | None -> 
+	   self#get_func id)
+      
+  method class_decl (id:string) (inst:qs_inst)=
+    let c()=
+      let nc=new qs_class in      
+	self#inst_exec (Some nc#get_mem) (Some nc#get_funcs) inst;
+	nc
+    in
+  
+      self#add_class id c
+
+  method class_new (id:string) (cl:string)=
+    let c=self#get_class cl in
+      self#add_obj id (c())
 		      
-  method func_decl (id:string) (aref:qs_exp) (inst)=
-    self#add_func id (
+  method func_decl (id:string) (aref:qs_exp) (lfunc:qs_funcs option) (inst)=
+    let cf=(match lfunc with
+	      | Some lf -> lf
+	      | None -> (self:>qs_funcs)) in
+    cf#add_func id (
 		      fun args->
 			let lmem=new qs_mem in
 			  (match aref with
@@ -168,29 +250,26 @@ object(self)
 			     | _ -> raise (Qs_func_invalid_argument id)
 			  );
 			  
-			  self#inst_exec (Some lmem) (inst) 
+			  self#inst_exec (Some lmem) None (inst) 
 		     );
     QsUnit   
 
-  method func_exec (n:string) (lmem:qs_mem option) (args:qs_exp)=
+      
+
+  method func_exec (n:string) (lmem:qs_mem option) (lfunc:qs_funcs option) (args:qs_exp)=
     if debug then
       (print_string ("QS:call func "^n);print_newline());
-    let (f)=self#get_func n in	 
+    let (f)=self#get_local_func n lfunc in	 
       f (self#exp_exec lmem args); 
       
   method exp_exec lmem (v:qs_exp)=
     let exp_finalize (v:qs_val)=
       match v with
 	| QsVar id-> 
-	    (match lmem with
-	       | Some lm ->
-		   (try
-		      lm#get_val id 
-		    with
-			Qs_val_not_declared did->	   
-			  self#get_val id)
-	       | None -> 
-		   self#get_val id)
+	    self#get_local_val id lmem
+	| QsObjectMember(o,m)->
+	    let obj=self#get_obj o in
+	      self#get_local_val m (Some obj#get_mem)
 	| x -> x in
       
     let rec qs_exec_exp (v:qs_exp)=
@@ -229,18 +308,11 @@ object(self)
     in
       qs_exec_exp v
 	    
-  method inst_exec (lmem:qs_mem option) v=
+  method inst_exec (lmem:qs_mem option) (lfunc:qs_funcs option) v=
     let rec qs_exec_inst (v:qs_inst)=
       match v with
 	| QsGetVal (id)->
-	    (match lmem with
-	       | Some lm ->
-		   (try lm#get_val id 
-		   with
-		       Qs_val_not_declared did->	   
-			 self#get_val id)
-	       | None -> self#get_val id)
-
+	    self#get_local_val id lmem
 	| QsSetVal (id,v)->
 	    if debug then
               (print_string ("QS:set_val " ^id);print_newline());
@@ -249,28 +321,45 @@ object(self)
 	| QsSetValInst (id,v)->
 	    if debug then
               (print_string ("QS:set_val with func" ^id);print_newline());
-	    self#set_val id (self#inst_exec lmem v);QsNil
+	    self#set_val id (self#inst_exec lmem lfunc v);QsNil
 
 
 	| QsInstBlock (vl)->
 	    let r=ref QsNil in
               List.iter (
 		fun vc->
-		  r:=self#inst_exec lmem vc
+		  r:=self#inst_exec lmem lfunc vc
 	      ) vl;
 	      !r
 
-	| QsIf (r,ifi,elsei)->if (bool_of_qs (self#exp_exec lmem r)) then self#inst_exec lmem ifi else self#inst_exec lmem elsei
-	| QsWhile (r,d)->while (bool_of_qs (self#exp_exec lmem r)) do self#inst_exec lmem d done;QsNil
+	| QsIf (r,ifi,elsei)->if (bool_of_qs (self#exp_exec lmem r)) then self#inst_exec lmem lfunc ifi else self#inst_exec lmem lfunc elsei
+	| QsWhile (r,d)->while (bool_of_qs (self#exp_exec lmem r)) do self#inst_exec lmem lfunc d done;QsNil
 	| QsFuncRet v->
 	    self#exp_exec lmem v
 	| QsFuncDecl (n,a,i)->
             if debug then
 	      (print_string ("QS:declare func "^n);print_newline());
-	    self#func_decl n a i;
+	    self#func_decl n a lfunc i;
 	    QsNil
 	| QsFunc (n,args)->
-	    self#func_exec n lmem args
+	    self#func_exec n lmem lfunc args
+
+	| QsClassDecl(n,i)->
+	    self#class_decl n i;
+	    QsNil
+	| QsClassNew(n,c)->
+	    self#class_new n c;
+	    self#set_val n (QsObject c);
+	    QsNil
+	| QsClassMethod(o,m,args)->
+	    let obj=self#get_obj o in
+	      self#func_exec m (Some obj#get_mem) (Some obj#get_funcs) args
+(*
+	| QsObjectMember(o,m)->
+	    let obj=self#get_obj o in
+	      print_string "get member ";print_string m;print_newline();
+	      self#get_local_val m (Some obj#get_mem)
+*)
 	| QsUnit -> QsNil
 	| QsVal v-> v
 	| _ -> QsNil in
@@ -285,7 +374,7 @@ object(self)
     let r=ref QsNil in
       while (Stack.is_empty inst_stack==false) do
 	let inst=self#pop_inst() in
-	  r:=self#inst_exec (None) inst 
+	  r:=self#inst_exec (None) None inst 
       done;!r
 		
 end;;  

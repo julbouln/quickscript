@@ -19,6 +19,10 @@ rule token = parse
   | "function"      {FUNCDEC}
   | "return"      {FUNCRET}
 
+  | "class"      {CLASS}
+  | "->"      {CLASSMEMBER}
+  | "new"        {NEW}
+
   | "true"          { BOOL(true) }
   | "false"         { BOOL(false) }
   
