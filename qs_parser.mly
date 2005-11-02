@@ -8,12 +8,14 @@
 %token <string> STRING
 %token <string> VAL
 %token <string> FUNC
+%token <string> REF
 
 %token NIL
 
 %token PLUS MINUS TIMES DIV
 %token LPAREN RPAREN
 %token LAC RAC
+%token LBRA RBRA
 %token EOL
 
 %token BEGIN END
@@ -50,6 +52,7 @@
 %token FUNCRET
 
 %token CLASS
+%token INHERIT
 %token CLASSMEMBER
 %token NEW
 
@@ -102,10 +105,11 @@ inst:
 | func exp RPAREN { QsFunc($1,$2)}
 | func RPAREN { QsFunc($1,QsEVal(QsNil))}
 
-| CLASS VAL LAC inst RAC {QsClassDecl($2,$4)}
-| VAL EGAL NEW VAL {QsClassNew($1,$4)}
+| CLASS REF LAC inst RAC {QsClassDecl($2,$4)}
+| VAL EGAL NEW REF {QsClassNew($1,$4)}
 | VAL CLASSMEMBER func exp RPAREN { QsClassMethod($1,$3,$4) }
 | VAL CLASSMEMBER func RPAREN { QsClassMethod($1,$3,QsEVal(QsNil)) }
+| INHERIT REF {QsClassInherit($2)}
 
 | UNIT { QsUnit }
 
@@ -114,7 +118,8 @@ inst:
 ;
 
 func:
-| FUNC { Str.string_before $1 (String.length $1 - 1) } 
+/*| FUNC { Str.string_before $1 (String.length $1 - 1) } */
+| REF LPAREN { $1 }
 
 exp:
 | exp_bool      { $1 }
@@ -160,5 +165,6 @@ exp_string:
 ;
 
 exp_val:
+/*| VAL { QsEVal(QsVar(Str.string_after $1 1)) } */
 | VAL    { QsEVal(QsVar($1)) }
-| VAL CLASSMEMBER VAL {QsEVal(QsObjectMember($1,$3))}
+| VAL CLASSMEMBER REF {QsEVal(QsObjectMember($1,$3))}

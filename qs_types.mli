@@ -44,7 +44,7 @@ type qs_inst=
   | QsClassMethod of (string * string * qs_exp)
   | QsClassDecl of (string * qs_inst)
   | QsClassNew of (string * string)
-
+  | QsClassInherit of (string)
 
   | QsUnit
 ;;

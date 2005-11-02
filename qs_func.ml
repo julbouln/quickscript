@@ -98,6 +98,9 @@ object(self)
       Hashtbl.find val_hash id
     else 
       raise (Qs_val_not_declared id) 	
+
+  method iter_val (f:string->qs_val->unit)=
+    Hashtbl.iter f val_hash
 end;;  
 
 class qs_funcs=
@@ -114,6 +117,10 @@ object(self)
       Hashtbl.find func_hash id
     else 
       raise (Qs_func_not_declared id)
+
+  method iter_func (f:string->(qs_val->qs_val)->unit)=
+    Hashtbl.iter f func_hash
+
 end;;  
 
 class qs_class=
@@ -122,6 +129,16 @@ object(self)
   val mutable funcs=new qs_funcs
   method get_mem=mem
   method get_funcs=funcs
+
+  method inherit_mem (cmem:qs_mem)=
+    mem#iter_val (fun id v->
+		       cmem#set_val id v
+		    );
+  method inherit_funcs (cfuncs:qs_funcs)=
+    funcs#iter_func (fun id v->
+		       cfuncs#set_func id v
+		    );
+
 end;;
 
 
@@ -168,6 +185,24 @@ object(self)
 			   
   method push_inst (i:qs_inst)=Stack.push i inst_stack
   method pop_inst()=Stack.pop inst_stack
+
+
+  method get_local_mem (lmem:qs_mem option)=
+    (match lmem with
+       | Some lm ->
+	   lm
+       | None -> 
+	   (self:>qs_mem)
+    )
+
+  method get_local_funcs (lfuncs:qs_funcs option)=
+    (match lfuncs with
+       | Some lf ->
+	   lf
+       | None -> 
+	   (self:>qs_funcs)
+    )
+
 
   method get_local_val id (lmem:qs_mem option)=
     (match lmem with
@@ -354,9 +389,16 @@ object(self)
 	| QsClassMethod(o,m,args)->
 	    let obj=self#get_obj o in
 	      self#func_exec m (Some obj#get_mem) (Some obj#get_funcs) args
+
+	| QsClassInherit(c)->
+	    let cl=self#get_class c in
+	    let icl=cl() in
+	      icl#inherit_mem (self#get_local_mem lmem);
+	      icl#inherit_funcs (self#get_local_funcs lfunc);
+	      QsNil
 (*
 	| QsObjectMember(o,m)->
-	    let obj=self#get_obj o in
+	    let obj=self#get_obj o ni
 	      print_string "get member ";print_string m;print_newline();
 	      self#get_local_val m (Some obj#get_mem)
 *)
