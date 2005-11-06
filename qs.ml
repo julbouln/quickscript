@@ -3,28 +3,19 @@
 open Qs_types;;
 open Qs_parser;;
 open Qs_func;;
+open Qs_stdlib;;
 
 (** parse s string with convertion function (for recup obj variables) (object:string -> variable:string -> result:int) and return the result of operation*)
 
   
-let qs_parse s=
-         let lexbuf=Lexing.from_string (s) in
-           Qs_parser.block (Qs_lexer.token ) lexbuf;;
- 
 
 let filename=(Sys.argv).(1) in
-let file=open_in filename in
-let buf=Buffer.create 1024 in
-  while (
-    try
-      Buffer.add_string buf (input_line file);
-      Buffer.add_string buf "\n";
-      true;
-    with End_of_file -> false
-  ) do () done;
-  (*print_string (Buffer.contents buf);*)
-  qs_parse (Buffer.contents buf);
-  close_in file
+
+  let kernel=new qs_kernel in
+    load_stdlib kernel;
+    kernel#file_exec filename
+
+
 
 
 (*

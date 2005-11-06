@@ -19,6 +19,9 @@ rule token = parse
   | "function"      {FUNCDEC}
   | "return"      {FUNCRET}
 
+  | "include"      {INCLUDE}
+
+  | "package"      {PACKAGE}
 
   | "class"      {CLASS}
   | "inherit"        {INHERIT}
@@ -67,9 +70,9 @@ rule token = parse
 
  
   | '$' ['A'-'z' '_' '0'-'9']+ as lxm  { VAL(Str.string_after lxm 1) }
-(*  | ['A'-'z' '_' '0'-'9']+ '(' as lxm  { FUNC(lxm) } *)
-  | '"' (['A'-'z' '_' ' ' '@' '0'-'9']+ as lxm) '"' { STRING(lxm) }
+  | '#' ['A'-'z' '_' '0'-'9']+ as lxm  { OVAL(Str.string_after lxm 1) }
+  | '%' ['A'-'z' '_' '0'-'9']+ as lxm  { EVAL(Str.string_after lxm 1) }
+  | '"' (['A'-'z' '_' ' ' '@' '0'-'9' '/' '\\' '*' '#' '.']+ as lxm) '"' { STRING(lxm) }
   | ['A'-'z' '_' '0'-'9']+ as lxm  { REF(lxm) }
 
-(*  | (['A'-'z']+ as id) '#' (['A' - 'z']+ as lxm) { INT(f id lxm) } *)
   | eof            { raise Eof } 

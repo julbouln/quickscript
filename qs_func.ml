@@ -1,12 +1,14 @@
 open Qs_types;;
+open Qs_parser;;
 
 let debug=false;;
 
 exception Qs_val_not_declared of string
+exception Qs_val_not_an_enum of string
 exception Qs_class_not_declared of string
 exception Qs_func_not_declared of string
 exception Qs_func_invalid_argument of string
-
+exception Qs_syntax_error of string
 
 let int_of_qs p=match p with
   | QsInt x-> x
@@ -28,40 +30,6 @@ let struct_of_qs p=match p with
   | _ -> raise Bad_qs_type
 ;;
 
-
-let qs_exp_list_concat l1 l2=
-  match l1 with
-    | QsEList v-> 
-        (match l2 with
-	   | QsEList w-> QsEList (List.append v w)
-           | _ -> QsEList (List.append v [l2]))
-    | _ -> 
-        (match l2 with
-	   | QsEList w-> QsEList (List.append [l1] w)
-           | _ -> QsEList (List.append [l1] [l2]));;
-
-let qs_val_list_concat l1 l2=
-  match l1 with
-    | QsValList v-> 
-        (match l2 with
-	   | QsValList w-> QsValList (List.append v w)
-           | _ -> QsValList (List.append v [l2]))
-    | _ -> 
-        (match l2 with
-	   | QsValList w-> QsValList (List.append [l1] w)
-           | _ -> QsValList (List.append [l1] [l2]));;
-
-
-let qs_inst_block_concat l1 l2=
-  match l1 with
-    | QsInstBlock v-> 
-        (match l2 with
-	   | QsInstBlock w-> QsInstBlock (List.append v w)
-           | _ -> QsInstBlock(List.append v [l2]))
-    | _ -> 
-        (match l2 with
-	   | QsInstBlock w-> QsInstBlock (List.append [l1] w)
-           | _ -> QsInstBlock (List.append [l1] [l2]));;
 
 let add_val_struct s v c=
   let h=struct_of_qs s in
@@ -142,22 +110,6 @@ object(self)
 end;;
 
 
-class qs_classes=
-object(self)
-  val mutable class_hash=Hashtbl.create 2
-			 
-  method add_class (id:string) (v:unit->qs_class)=
-    Hashtbl.add class_hash id v
-  method set_class (id:string) (v:unit->qs_class)=
-      Hashtbl.replace class_hash id v
-  method del_class (id:string)=Hashtbl.remove class_hash id
-  method get_class (id:string)=
-    if Hashtbl.mem class_hash id then
-      Hashtbl.find class_hash id
-    else 
-      raise (Qs_class_not_declared id)
-end;;
-
 class qs_objects=
 object(self)
   val mutable obj_hash=Hashtbl.create 2
@@ -173,6 +125,25 @@ object(self)
     else 
       raise (Qs_class_not_declared id)
 end;;
+
+class qs_classes=
+object(self)
+
+  val mutable class_hash=Hashtbl.create 2
+			 
+  method add_class (id:string) (v:unit->qs_class)=
+    Hashtbl.add class_hash id v
+  method set_class (id:string) (v:unit->qs_class)=
+      Hashtbl.replace class_hash id v
+  method del_class (id:string)=Hashtbl.remove class_hash id
+  method get_class (id:string)=
+    if Hashtbl.mem class_hash id then
+      Hashtbl.find class_hash id
+    else 
+      raise (Qs_class_not_declared id)
+end;;
+
+
   
 class qs_kernel=
 object(self)
@@ -225,6 +196,34 @@ object(self)
 		  self#get_func id)
        | None -> 
 	   self#get_func id)
+
+
+
+  method file_load filename=
+    let qs_parse s=
+      let lexbuf=Lexing.from_string (s) in
+        Qs_parser.block (Qs_lexer.token ) lexbuf in
+
+    let file=open_in filename in
+    let buf=Buffer.create 1024 in
+      while (
+	try
+	  Buffer.add_string buf (input_line file);
+	  Buffer.add_string buf "\n";
+	  true;
+	with End_of_file -> false
+      ) do () done;
+
+      let inst=qs_parse (Buffer.contents buf) in
+	close_in file;
+	inst
+
+  method file_exec filename=
+    let inst=self#file_load filename in
+      self#push_inst(inst);
+      self#exec();
+      
+
       
   method class_decl (id:string) (inst:qs_inst)=
     let c()=
@@ -254,7 +253,7 @@ object(self)
 				    | QsNil -> ()
 				    | _ -> raise (Qs_func_invalid_argument id)
 				 )
-			     | QsEList vl->
+			     | QsEEnum vl->
 				 let i=ref 0 in
 				   List.iter (fun v->
 						(match v with
@@ -263,7 +262,7 @@ object(self)
 							  | QsVar vid ->
 							      let argl=
 								(match args with
-								   | QsValList al ->
+								   | QsEnum al ->
 								       (*List.map (
 									fun arg->
 									 match arg with 
@@ -298,13 +297,22 @@ object(self)
       f (self#exp_exec lmem args); 
       
   method exp_exec lmem (v:qs_exp)=
-    let exp_finalize (v:qs_val)=
+    let rec exp_finalize (v:qs_val)=
       match v with
 	| QsVar id-> 
 	    self#get_local_val id lmem
 	| QsObjectMember(o,m)->
 	    let obj=self#get_obj o in
-	      self#get_local_val m (Some obj#get_mem)
+	      exp_finalize m
+(*	| QsEnumMember(id,i)->
+	    print_string id;print_newline();
+	    let e=self#get_local_val id lmem in
+	      (match e with
+		| QsEnum l->
+		    List.nth l (int_of_qs i)
+		| _ -> raise (Qs_val_not_an_enum id)
+	      )
+*)
 	| x -> x in
       
     let rec qs_exec_exp (v:qs_exp)=
@@ -334,10 +342,18 @@ object(self)
 	    QsInt(int_of_qs(qs_exec_exp v1) / int_of_qs(qs_exec_exp v2))
 	| QsEConcat(v1,v2)->
 	    QsString(string_of_qs(qs_exec_exp v1) ^ string_of_qs(qs_exec_exp v2))
-	| QsEList(vl)->
-	    QsValList(List.map (fun ve->
+	| QsEEnum(vl)->
+	    QsEnum(List.map (fun ve->
 			   qs_exec_exp ve
 			) vl);
+	| QsEEnumEntry(id,i)->
+	    let iv=qs_exec_exp i in
+	    let e=self#get_local_val id lmem in
+	      (match e with
+		| QsEnum l->
+		    List.nth l (int_of_qs iv)
+		| _ -> raise (Qs_val_not_an_enum id)
+	      )
 
 	| _ -> QsNil 
     in
@@ -346,6 +362,10 @@ object(self)
   method inst_exec (lmem:qs_mem option) (lfunc:qs_funcs option) v=
     let rec qs_exec_inst (v:qs_inst)=
       match v with
+	| QsError p->
+	    raise (Qs_syntax_error ("Offset "^string_of_int p.Lexing.pos_cnum));
+	| QsInclude file->
+	    self#inst_exec lmem lfunc (self#file_load file);QsNil
 	| QsGetVal (id)->
 	    self#get_local_val id lmem
 	| QsSetVal (id,v)->
@@ -353,9 +373,19 @@ object(self)
               (print_string ("QS:set_val " ^id);print_newline());
 	    self#set_val id (self#exp_exec lmem v);QsNil
 
+	| QsSetValObject (id,v)->
+	    if debug then
+              (print_string ("QS:set_val with object " ^id);print_newline());
+	    (match (self#exp_exec lmem v) with
+	      | QsObject oid->
+		  self#set_obj id (self#get_obj oid);
+(*		  self#set_val id (self#exp_exec lmem v);*)
+		  QsNil
+	      | _ -> QsNil
+	    )
 	| QsSetValInst (id,v)->
 	    if debug then
-              (print_string ("QS:set_val with func" ^id);print_newline());
+              (print_string ("QS:set_val with func " ^id);print_newline());
 	    self#set_val id (self#inst_exec lmem lfunc v);QsNil
 
 
@@ -369,6 +399,13 @@ object(self)
 
 	| QsIf (r,ifi,elsei)->if (bool_of_qs (self#exp_exec lmem r)) then self#inst_exec lmem lfunc ifi else self#inst_exec lmem lfunc elsei
 	| QsWhile (r,d)->while (bool_of_qs (self#exp_exec lmem r)) do self#inst_exec lmem lfunc d done;QsNil
+	| QsFor (c1,c2,c3,i)->
+	    self#inst_exec lmem lfunc c1;
+	    while (bool_of_qs (self#exp_exec lmem c2)) do
+	      self#inst_exec lmem lfunc i;
+	      self#inst_exec lmem lfunc c3;
+	    done;QsNil
+(*	    for (self#inst_exec lmem lfunc c1) to (bool_of_qs (self#exp_exec lmem c2)) do self#inst_exec lmem lfunc i done;QsNil *)
 	| QsFuncRet v->
 	    self#exp_exec lmem v
 	| QsFuncDecl (n,a,i)->
@@ -421,44 +458,3 @@ object(self)
 		
 end;;  
 
-let kernel=new qs_kernel ;;
-
-(* DEFAULT FUNC *)
-(* PRINT func *)
-let print=( 
-  let rec parse_args a=
-    (match a with
-       | QsInt x -> print_int x;print_newline();
-       | QsString x -> print_string x;print_newline();
-       | QsValList x->
-	   List.iter 
-             ( fun ca -> parse_args ca)
-             x;
-       | _ -> ()) in
-    fun args-> parse_args args;QsNil );;
-
-kernel#add_func "print" ( print);; 
-
-let random=( 
-  let rec parse_args a=
-    (match a with
-       | QsInt x -> QsInt (Random.int x)
-       | _ -> raise (Qs_func_invalid_argument "random")) in
-    fun args-> parse_args args; );;   
-
-kernel#add_func "random" ( random);; 
-
-kernel#add_func "concat" (( 
-  let res=ref "" in
-  let parse_args a=
-    (match a with
-       | QsValList x->
-	   List.iter 
-	     ( fun ca ->
-		 match ca with
-		   | QsString v -> res:= !res^v
-	           | _-> raise (Qs_func_invalid_argument "concat")
-	     )
-             x;
-       | _-> raise (Qs_func_invalid_argument "concat")) in
-    fun args-> parse_args args;QsString (!res)));; 

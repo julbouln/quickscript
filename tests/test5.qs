@@ -1,4 +1,4 @@
-begin
+package {
 $d=(10+4)*5;
 $e="bla"."truc"."chouette";
 print($d);
@@ -14,4 +14,4 @@ print($b);
 //print("bidule");
 test(15,20);
 //print("truc");
-end
+}

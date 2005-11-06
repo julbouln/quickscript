@@ -1,12 +1,50 @@
 %{
   open Qs_types;;
-  open Qs_func;;
+
+
+let qs_exp_list_concat l1 l2=
+  match l1 with
+    | QsEEnum v-> 
+        (match l2 with
+	   | QsEEnum w-> QsEEnum (List.append v w)
+           | _ -> QsEEnum (List.append v [l2]))
+    | _ -> 
+        (match l2 with
+	   | QsEEnum w-> QsEEnum (List.append [l1] w)
+           | _ -> QsEEnum (List.append [l1] [l2]));;
+
+let qs_val_list_concat l1 l2=
+  match l1 with
+    | QsEnum v-> 
+        (match l2 with
+	   | QsEnum w-> QsEnum (List.append v w)
+           | _ -> QsEnum (List.append v [l2]))
+    | _ -> 
+        (match l2 with
+	   | QsEnum w-> QsEnum (List.append [l1] w)
+           | _ -> QsEnum (List.append [l1] [l2]));;
+
+
+let qs_inst_block_concat l1 l2=
+  match l1 with
+    | QsInstBlock v-> 
+        (match l2 with
+	   | QsInstBlock w-> QsInstBlock (List.append v w)
+           | _ -> QsInstBlock(List.append v [l2]))
+    | _ -> 
+        (match l2 with
+	   | QsInstBlock w-> QsInstBlock (List.append [l1] w)
+           | _ -> QsInstBlock (List.append [l1] [l2]));;
 
 %}
 
 %token <int> INT
 %token <string> STRING
+
 %token <string> VAL
+%token <string> OVAL
+%token <string> EVAL
+
 %token <string> FUNC
 %token <string> REF
 
@@ -51,6 +89,9 @@
 %token FUNCDEC
 %token FUNCRET
 
+%token INCLUDE
+%token PACKAGE
+
 %token CLASS
 %token INHERIT
 %token CLASSMEMBER
@@ -68,12 +109,15 @@
 %%
 
 block:
-| BEGIN inst END  { kernel#push_inst($2);kernel#exec();QsUnit }
+| BEGIN inst END  { $2 }
+| PACKAGE LAC inst RAC  { $3 }
 ;
 
 inst:
+| error                   { QsError(Parsing.symbol_start_pos()) }
 | COMMENT                 { QsComment($1) }
 | LPAREN inst RPAREN      { $2 }
+
 | inst SEP {$1}
 | inst SEP inst { qs_inst_block_concat $1 $3 }
 | LAC inst RAC { $2 }
@@ -82,8 +126,7 @@ inst:
 
 | COMMENT inst { QsUnit }
 
-/*| VAL EGAL STRUCTSUB  { (QsAddVal($1, QsEVal(Qs_types.QsStruct (Hashtbl.create 2)))); }*/
-/*| VAL STRUCTSUB VAL EGAL exp { let r=kernel#exec() in add_val_struct (kernel#get_val $1) $3 $5;QsUnit}*/
+| INCLUDE LPAREN STRING RPAREN {QsInclude($3)}
 
 | VAL EGAL func exp RPAREN {QsSetValInst($1, (QsFunc($3,$4)))}
 | VAL EGAL func RPAREN {QsSetValInst($1, (QsFunc($3,QsEVal(QsNil))))}
@@ -91,10 +134,13 @@ inst:
 | VAL EGAL inst {QsSetValInst($1, $3)}
 | VAL EGAL exp { QsSetVal($1, $3)}
 
-/*| FOR LPAREN inst SEP exp SEP exp RPAREN LAC inst RAC {
-    $10
-  }
-*/
+| EVAL EGAL exp { QsSetVal($1, $3)}
+| OVAL EGAL exp { QsSetValObject($1, $3)}
+
+| VAL PLUS PLUS {QsSetVal($1,QsEPlus(QsEVal(QsVar($1)),QsEVal(QsInt(1))))}
+
+| FOR LPAREN inst SEP exp SEP inst RPAREN LAC inst RAC {QsFor($3,$5,$7,$10)}
+
 
 | WHILE LPAREN exp RPAREN LAC inst RAC { QsWhile($3,$6) }
 
@@ -108,9 +154,9 @@ inst:
 | func RPAREN { QsFunc($1,QsEVal(QsNil))}
 
 | CLASS REF LAC inst RAC {QsClassDecl($2,$4)}
-| VAL EGAL NEW REF {QsClassNew($1,$4)}
-| VAL CLASSMEMBER func exp RPAREN { QsClassMethod($1,$3,$4) }
-| VAL CLASSMEMBER func RPAREN { QsClassMethod($1,$3,QsEVal(QsNil)) }
+| OVAL EGAL NEW REF {QsClassNew($1,$4)}
+| OVAL CLASSMEMBER func exp RPAREN { QsClassMethod($1,$3,$4) }
+| OVAL CLASSMEMBER func RPAREN { QsClassMethod($1,$3,QsEVal(QsNil)) }
 | INHERIT REF {QsClassInherit($2)}
 
 | UNIT { QsUnit }
@@ -120,10 +166,10 @@ inst:
 ;
 
 func:
-/*| FUNC { Str.string_before $1 (String.length $1 - 1) } */
 | REF LPAREN { $1 }
 
 exp:
+| exp_enum      { $1 }
 | exp_bool      { $1 }
 | exp_int       { $1 }
 | exp_string    { $1 }
@@ -131,6 +177,10 @@ exp:
 | exp CSEP exp { (qs_exp_list_concat $1 $3)}
 | NIL           { QsEVal(QsNil) }
 | LPAREN exp RPAREN      { $2 }
+
+
+exp_enum:
+| EVAL LBRA exp_int RBRA {QsEEnumEntry($1,$3)}
 
 exp_bool:
 BOOL			 { QsEVal(QsBool($1)) }
@@ -168,5 +218,10 @@ exp_string:
 
 exp_val:
 /*| VAL { QsEVal(QsVar(Str.string_after $1 1)) } */
-| VAL    { QsEVal(QsVar($1)) }
-| VAL CLASSMEMBER REF {QsEVal(QsObjectMember($1,$3))}
+| vval    { QsEVal($1) }
+
+
+vval:
+| VAL { QsVar($1) } 
+| OVAL { QsObject($1) } 
+| OVAL CLASSMEMBER vval {(QsObjectMember($1,$3))}

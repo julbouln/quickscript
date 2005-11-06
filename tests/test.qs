@@ -1,4 +1,4 @@
-begin
+package {
 $a=1;
 $b="bla";
 print($a);
@@ -21,4 +21,4 @@ $i=$i+1
 $r=random(100);
 print($r);
 bla();
-end
+}

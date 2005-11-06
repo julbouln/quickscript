@@ -3,10 +3,12 @@ type qs_val=
   | QsString of string 
   | QsBool of bool
   | QsStruct of (string, qs_val) Hashtbl.t 
-  | QsValList of (qs_val list)
+  | QsEnum of (qs_val list)
+
   | QsVar of string
   | QsObject of string
-  | QsObjectMember of (string * string)
+  | QsObjectMember of (string * qs_val)
+
   | QsNil
 ;;
 
@@ -25,18 +27,28 @@ type qs_exp=
   | QsETimes of qs_exp * qs_exp
   | QsEDiv of qs_exp * qs_exp
   | QsEConcat of qs_exp * qs_exp
-  | QsEList of qs_exp list
+  | QsEEnum of qs_exp list
+  | QsEEnumEntry of (string * qs_exp)
 ;;
 
 type qs_inst=
+  | QsError of Lexing.position
+  | QsInclude of string
+
   | QsGetVal of (string)
+
   | QsSetVal of (string * qs_exp)
   | QsSetValInst of (string * qs_inst)
+  | QsSetValObject of (string * qs_exp)
+
   | QsIf of (qs_exp * qs_inst * qs_inst)
+  | QsWhile of (qs_exp * qs_inst)
+  | QsFor of (qs_inst * qs_exp * qs_inst * qs_inst)
+
   | QsFunc of (string * qs_exp)
   | QsFuncDecl of (string * qs_exp * qs_inst)
   | QsFuncRet of qs_exp
-  | QsWhile of (qs_exp * qs_inst)
+
   | QsVal of qs_val
   | QsInstBlock of (qs_inst list)
   | QsComment of string
