@@ -3,14 +3,14 @@ $a=10;
 $b=5;
 $c=$a>5;
 $i=0;
-$i=$i+1;
+$i++;
 
 $r=random(100);
 print($r);
 while ($i<10) {
 
 print($i);
-$i=$i+1;
+$i++;
 };
 
 if ($a>5) {

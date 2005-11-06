@@ -34,6 +34,7 @@ type qs_exp=
 type qs_inst=
   | QsError of Lexing.position
   | QsInclude of string
+  | QsIncludeAs of (string * string)
 
   | QsGetVal of (string)
 

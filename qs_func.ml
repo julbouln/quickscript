@@ -366,6 +366,8 @@ object(self)
 	    raise (Qs_syntax_error ("Offset "^string_of_int p.Lexing.pos_cnum));
 	| QsInclude file->
 	    self#inst_exec lmem lfunc (self#file_load file);QsNil
+
+
 	| QsGetVal (id)->
 	    self#get_local_val id lmem
 	| QsSetVal (id,v)->
@@ -419,6 +421,13 @@ object(self)
 	| QsClassDecl(n,i)->
 	    self#class_decl n i;
 	    QsNil
+
+	| QsIncludeAs (file,cl) ->
+	    let inst=self#file_load file in
+	      self#class_decl cl inst;
+(*	    self#inst_exec lmem lfunc (self#file_load file);*)
+	      QsNil
+
 	| QsClassNew(n,c)->
 	    self#class_new n c;
 	    self#set_val n (QsObject c);

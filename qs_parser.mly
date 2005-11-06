@@ -62,9 +62,6 @@ let qs_inst_block_concat l1 l2=
 
 %token UNIT
 
-%token STRUCTSUB
-%token STRUCTEGAL
-
 %token EGAL
 
 %token <bool> BOOL
@@ -90,6 +87,7 @@ let qs_inst_block_concat l1 l2=
 %token FUNCRET
 
 %token INCLUDE
+%token AS
 %token PACKAGE
 
 %token CLASS
@@ -127,6 +125,7 @@ inst:
 | COMMENT inst { QsUnit }
 
 | INCLUDE LPAREN STRING RPAREN {QsInclude($3)}
+| INCLUDE LPAREN STRING RPAREN AS REF {QsIncludeAs($3,$6)}
 
 | VAL EGAL func exp RPAREN {QsSetValInst($1, (QsFunc($3,$4)))}
 | VAL EGAL func RPAREN {QsSetValInst($1, (QsFunc($3,QsEVal(QsNil))))}
@@ -180,7 +179,8 @@ exp:
 
 
 exp_enum:
-| EVAL LBRA exp_int RBRA {QsEEnumEntry($1,$3)}
+| EVAL LSEP LPAREN exp_int RPAREN {QsEEnumEntry($1,$4)}
+/*| EVAL LBRA exp_int RBRA {QsEEnumEntry($1,$3)}*/
 
 exp_bool:
 BOOL			 { QsEVal(QsBool($1)) }
@@ -225,3 +225,4 @@ vval:
 | VAL { QsVar($1) } 
 | OVAL { QsObject($1) } 
 | OVAL CLASSMEMBER vval {(QsObjectMember($1,$3))}
+| OVAL LSEP vval {(QsObjectMember($1,$3))}

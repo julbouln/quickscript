@@ -20,6 +20,7 @@ rule token = parse
   | "return"      {FUNCRET}
 
   | "include"      {INCLUDE}
+  | "as"      {AS}
 
   | "package"      {PACKAGE}
 
@@ -65,13 +66,10 @@ rule token = parse
 
   | '.' 	   {  LSEP }
  
-  | ":="            { STRUCTEGAL }
-  | '#'            {STRUCTSUB }
-
  
   | '$' ['A'-'z' '_' '0'-'9']+ as lxm  { VAL(Str.string_after lxm 1) }
   | '#' ['A'-'z' '_' '0'-'9']+ as lxm  { OVAL(Str.string_after lxm 1) }
-  | '%' ['A'-'z' '_' '0'-'9']+ as lxm  { EVAL(Str.string_after lxm 1) }
+  | '@' ['A'-'z' '_' '0'-'9']+ as lxm  { EVAL(Str.string_after lxm 1) }
   | '"' (['A'-'z' '_' ' ' '@' '0'-'9' '/' '\\' '*' '#' '.']+ as lxm) '"' { STRING(lxm) }
   | ['A'-'z' '_' '0'-'9']+ as lxm  { REF(lxm) }
 
