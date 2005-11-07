@@ -1,5 +1,6 @@
 package {
 //load("./test_lib.so");
+load("./stdlib.so");
 include("tests/test6.qs");
 //print_string2("bidulechouette");
 #t1=new test;
