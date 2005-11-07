@@ -1,6 +1,7 @@
 package {
-load("./test_lib.so");
+//load("./test_lib.so");
 include("tests/test6.qs");
+//print_string2("bidulechouette");
 #t1=new test;
 print(#t1->$a);
 #t2=#t1->#c;
@@ -10,4 +11,5 @@ print(#t1->#c->$v);
 $k=@l.(0);
 print($k);
 print(@l.(1));
+
 }

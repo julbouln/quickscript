@@ -12,7 +12,7 @@ open Qs_stdlib;;
 let filename=(Sys.argv).(1) in
 
   let kernel=new qs_kernel in
-    load_stdlib kernel;
+    load_stdlib kernel; 
     kernel#file_exec filename
 
 

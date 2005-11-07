@@ -1,6 +1,5 @@
 open Qs_types;;
-
-
+open Qs_lib_helper;;
 
 let print_string2 s=
   (match s with
@@ -8,10 +7,10 @@ let print_string2 s=
   | _ ->());
   QsNil
 
-let test s=print_string "blabla";print_newline();QsNil
+let test s=print_string "blabla";print_newline();QsNil;;
 
-let test2 s=print_string s;print_newline();;
+qs_lib_register [
+("test",test);
+("print_string2",print_string2)
+]
 
-let _ = Callback.register "test" test;;
-let _ = Callback.register "test2" test2;;
-let _ = Callback.register "print_string2" print_string2;;
