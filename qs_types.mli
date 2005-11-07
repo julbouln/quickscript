@@ -33,6 +33,8 @@ type qs_exp=
 
 type qs_inst=
   | QsError of Lexing.position
+
+  | QsLoad of string
   | QsInclude of string
   | QsIncludeAs of (string * string)
 

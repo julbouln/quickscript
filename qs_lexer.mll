@@ -20,6 +20,7 @@ rule token = parse
   | "return"      {FUNCRET}
 
   | "include"      {INCLUDE}
+  | "load"      {LOAD}
   | "as"      {AS}
 
   | "package"      {PACKAGE}

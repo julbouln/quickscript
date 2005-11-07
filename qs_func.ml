@@ -1,6 +1,8 @@
 open Qs_types;;
 open Qs_parser;;
 
+open Qs_lib;;
+
 let debug=false;;
 
 exception Qs_val_not_declared of string
@@ -151,6 +153,8 @@ object(self)
   inherit qs_funcs
   inherit qs_classes
   inherit qs_objects
+
+  val mutable libs=new qs_libs
 
   val mutable inst_stack=Stack.create()
 			   
@@ -367,6 +371,9 @@ object(self)
 	| QsInclude file->
 	    self#inst_exec lmem lfunc (self#file_load file);QsNil
 
+	| QsLoad file->
+	    libs#load file;
+	    QsNil
 
 	| QsGetVal (id)->
 	    self#get_local_val id lmem
@@ -416,7 +423,10 @@ object(self)
 	    self#func_decl n a lfunc i;
 	    QsNil
 	| QsFunc (n,args)->
-	    self#func_exec n lmem lfunc args
+	    (try
+	      libs#call n (self#exp_exec lmem args)
+	    with
+	      Qs_lib_func_not_found -> self#func_exec n lmem lfunc args)
 
 	| QsClassDecl(n,i)->
 	    self#class_decl n i;
@@ -463,7 +473,9 @@ object(self)
       while (Stack.is_empty inst_stack==false) do
 	let inst=self#pop_inst() in
 	  r:=self#inst_exec (None) None inst 
-      done;!r
+      done;
+    libs#unload_all();
+    !r
 		
 end;;  
 

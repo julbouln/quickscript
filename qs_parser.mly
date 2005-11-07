@@ -86,7 +86,7 @@ let qs_inst_block_concat l1 l2=
 %token FUNCDEC
 %token FUNCRET
 
-%token INCLUDE
+%token INCLUDE LOAD
 %token AS
 %token PACKAGE
 
@@ -123,6 +123,8 @@ inst:
 | LAC inst RAC inst { qs_inst_block_concat $2 $4 }
 
 | COMMENT inst { QsUnit }
+
+| LOAD LPAREN STRING RPAREN {QsLoad($3)}
 
 | INCLUDE LPAREN STRING RPAREN {QsInclude($3)}
 | INCLUDE LPAREN STRING RPAREN AS REF {QsIncludeAs($3,$6)}
