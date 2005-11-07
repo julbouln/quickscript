@@ -112,9 +112,11 @@ block:
 ;
 
 inst:
+
 | error                   { QsError(Parsing.symbol_start_pos()) }
 | COMMENT                 { QsComment($1) }
 | LPAREN inst RPAREN      { $2 }
+
 
 | inst SEP {$1}
 | inst SEP inst { qs_inst_block_concat $1 $3 }

@@ -29,7 +29,9 @@ class qs_libs=
   object
     val mutable libs=Hashtbl.create 2
 	
-    method load l=Hashtbl.add libs l (qs_lib_open l)
+    method load l=
+      if (Hashtbl.mem libs l)!=true then
+	Hashtbl.add libs l (qs_lib_open l)
 
     method call fn (args:qs_val)= 
       let found=ref false in

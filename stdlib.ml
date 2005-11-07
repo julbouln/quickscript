@@ -2,14 +2,14 @@ open Qs_types;;
 open Qs_lib_helper;;
 
 let print args=( 
-  let parse_args a=
+  let rec parse_args a=
     (match a with
     | QsInt x -> print_int x;print_newline();
     | QsString x -> print_string x;print_newline();
-(*    | QsEnum x->
+    | QsEnum x->
 	List.iter 
           ( fun ca -> parse_args ca)
-          x;*)
+          x;
     | _ -> ()) in
   parse_args args;QsNil ) ;;
 

@@ -5,7 +5,7 @@
 }
 rule token = parse 
     [' ' '\t' '\n']      { token lexbuf }     (* skip blanks *) 
-  | '\n'            { EOL } 
+(*  | '\n'            { EOL } *)
    
   | "nil"           { NIL }
  
@@ -59,6 +59,9 @@ rule token = parse
   | '|'            { OR }
 
   | "//" [^ ';']*  { COMMENT(Lexing.lexeme lexbuf) }
+  | "/*" _* "*/"  { COMMENT(Lexing.lexeme lexbuf) }
+
+
 
   | "unit"         { UNIT }
   | ',' 	   {  CSEP }
@@ -71,7 +74,8 @@ rule token = parse
   | '$' ['A'-'z' '_' '0'-'9']+ as lxm  { VAL(Str.string_after lxm 1) }
   | '#' ['A'-'z' '_' '0'-'9']+ as lxm  { OVAL(Str.string_after lxm 1) }
   | '@' ['A'-'z' '_' '0'-'9']+ as lxm  { EVAL(Str.string_after lxm 1) }
-  | '"' (['A'-'z' '_' ' ' '@' '0'-'9' '/' '\\' '*' '#' '.']+ as lxm) '"' { STRING(lxm) }
+(*  | '"' (['A'-'z' '_' ' ' '@' '0'-'9' '/' '\\' '*' '#' '.']+ as lxm) '"' { STRING(lxm) } *)
+  | '"' ([^ '"']+ as lxm) '"' { STRING(lxm) } 
   | ['A'-'z' '_' '0'-'9']+ as lxm  { REF(lxm) }
 
   | eof            { raise Eof } 
