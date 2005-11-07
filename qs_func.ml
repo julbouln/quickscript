@@ -424,9 +424,9 @@ object(self)
 	    QsNil
 	| QsFunc (n,args)->
 	    (try
-	      libs#call n (self#exp_exec lmem args)
+	      self#func_exec n lmem lfunc args
 	    with
-	      Qs_lib_func_not_found -> self#func_exec n lmem lfunc args)
+	      Qs_func_not_declared f-> 	      libs#call n (self#exp_exec lmem args))
 
 	| QsClassDecl(n,i)->
 	    self#class_decl n i;
