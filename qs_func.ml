@@ -1,7 +1,7 @@
 open Qs_types;;
 open Qs_parser;;
 
-open Qs_lib;;
+(*open Qs_lib;;*)
 
 let debug=false;;
 
@@ -154,7 +154,7 @@ object(self)
   inherit qs_classes
   inherit qs_objects
 
-  val mutable libs=new qs_libs
+(*  val mutable libs=new qs_libs *)
 
   val mutable inst_stack=Stack.create()
 			   
@@ -372,7 +372,7 @@ object(self)
 	    self#inst_exec lmem lfunc (self#file_load file);QsNil
 
 	| QsLoad file->
-	    libs#load file;
+(*	    libs#load file; *)
 	    QsNil
 
 	| QsGetVal (id)->
@@ -423,11 +423,11 @@ object(self)
 	    self#func_decl n a lfunc i;
 	    QsNil
 	| QsFunc (n,args)->
-	    (try
+(*	    (try *)
 	      self#func_exec n lmem lfunc args
-	    with
+(*	    with
 	      Qs_func_not_declared f-> 	      libs#call n (self#exp_exec lmem args))
-
+*)
 	| QsClassDecl(n,i)->
 	    self#class_decl n i;
 	    QsNil
@@ -474,7 +474,7 @@ object(self)
 	let inst=self#pop_inst() in
 	  r:=self#inst_exec (None) None inst 
       done;
-    libs#unload_all();
+(*    libs#unload_all(); *)
     !r
 		
 end;;  
